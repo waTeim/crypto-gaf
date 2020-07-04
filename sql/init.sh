@@ -1,0 +1,1 @@
+psql -f crypto-gaf.sql
