@@ -1,0 +1,3 @@
+[submodule "dstream/cgaf-source/coinbase-local"]
+	path = dstream/cgaf-source/coinbase-local
+	url = https://github.com/waTeim/coinbase-local.git
