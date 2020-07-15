@@ -5,11 +5,13 @@ export class GAF
   protected static pool:Pool;
   protected static gafs:Map<string,GAF>;
 
-  protected currentData:number[];
+  protected askPriceImages:string[];
+  protected bidPriceImages:string[];
   protected maxSize:number;
+  protected midpoint:number;
+  protected midpointImages:string[];
   protected product:string;
   protected size:number;
-  protected updatedData:number[];
 
   constructor(product:string)
   {
@@ -21,19 +23,23 @@ export class GAF
     
     let rows = await connection.query(`
       SELECT
-        current_data,
+        ask_price_images,
+        bid_price_images,
         max_size,
-        size,
-        updated_data
+        midpoint,
+        midpoint_images,
+        size
       FROM 
         crypto_gaf.gafs 
       WHERE product = $1
       `,[this.product]);
     if(rows != null && rows.length != 0) {
-      this.currentData = rows[0].current_data;
+      this.askPriceImages = rows[0].ask_price_images;
+      this.bidPriceImages = rows[0].bid_price_images;
+      this.midpoint = rows[0].midpoint;
+      this.midpointImages = rows[0].midpoint_images;
       this.maxSize = rows[0].max_size;
       this.size = rows[0].size;
-      this.updatedData = rows[0].updated_data;
     }
     connection.free();
   }
@@ -43,6 +49,7 @@ export class GAF
     let gaf = GAF.retrieve(product);
     
     if(gaf != null) await gaf.load();
+    else console.log("gaf retrieve = null");
     return gaf;
   }
 
@@ -74,9 +81,24 @@ export class GAF
     return GAF.gafs.get(product);
   }
 
-  getCurrent():number[]
+  getAskPriceImages():string[]
   {
-    return this.currentData;
+    return this.askPriceImages;
+  }
+
+  getBidPriceImages():string[]
+  {
+    return this.bidPriceImages;
+  }
+
+  getMidpoint():number
+  {
+    return this.midpoint;
+  }
+
+  getMidpointImages():string[]
+  {
+    return this.midpointImages;
   }
 
   getSize()

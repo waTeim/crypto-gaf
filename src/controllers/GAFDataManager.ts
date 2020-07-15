@@ -7,7 +7,12 @@ const BigNumber = require('bignumber.js');
 interface GAFData
 {
   date:Date;
-  data:number[][];
+  size:number;
+  midpoint:number;
+  png1:string;
+  png2:string;
+  png3:string;
+  png4:string;
 };
 
 /**
@@ -23,24 +28,20 @@ export default class GAFManager extends ControllerBase
     super(properties);
   }
 
-  @get('/current') async getGAF(product:string):Promise<GAFData>
+  @get('/image') async getGAFImage(product:string):Promise<GAFData>
   {
     let g:GAF = await GAF.refresh(product);
-    let data:GAFData;
 
     if(g != null) 
     {
-      let current = g.getCurrent();
+      let askPriceImages = g.getAskPriceImages();
+      let bidPriceImages = g.getBidPriceImages();
+      let midpoint = g.getMidpoint();
+      let midpointImages = g.getMidpointImages();
       let size = g.getSize();
 
-      data.date = new Date();
-      for(let i = 0;i < size;i++)
-      {
-        data.data.push([]);
-        for(let j = 0;j < size;j++) data.data[i].push(current[i*size + j]);
-      }
-      return data;
+      return { midpoint:midpoint, png1:midpointImages[0], png2:askPriceImages[0], png3:bidPriceImages[0], png4:midpointImages[1], size:size, date:new Date() };
     }
-    return { data:null, date:new Date() };
+    return { midpoint:null, png1:null, png2:null, png3:null, png4:null, size:0, date:new Date() };
   }
 }

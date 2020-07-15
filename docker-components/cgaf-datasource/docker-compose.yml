@@ -1,0 +1,25 @@
+version: '3.7'
+services:
+  collect:
+    build: collect
+    image: cgaf-datasource_collect
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: pg
+      POSTGRES_DB: postgres
+      SLEEP_INTERVAL: 0.25
+  calculate:
+    build: calculate
+    image: cgaf-datasource_calculate
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: pg
+      POSTGRES_DB: postgres
+      SLEEP_INTERVAL: 0.5
+secrets:
+  pg_pw:
+    file: ./pg_pw.txt
+networks:
+  default:
+    external:
+      name: cgaf

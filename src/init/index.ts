@@ -3,6 +3,9 @@ const cors = require('cors');
 import express from 'express';
 import * as bodyParser from 'body-parser';
 import { Router } from './Router';
+import { Pool } from '../lib/db';
+import { GAF } from '../lib/GAF';
+
 
 const app = express();
 
@@ -16,11 +19,14 @@ async function initRouter(app: express.Application,context:any)
   app.use(router.getExpressRouter());
 }
 
-export default async function init(products:string[])
+export default async function init(pgUrl:string)
 {
   try
   {
-    await initRouter(app,{ products:products });
+    let pool:Pool = new Pool(pgUrl);
+
+    await initRouter(app,{});
+    await GAF.restore(pool);
     return app;
   }
   catch(e)
