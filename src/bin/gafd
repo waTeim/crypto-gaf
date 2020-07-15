@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 "use strict";
 
-/*  Top level ysend driver                                       */
+/*  Top level gafd driver                                       */
 /*  Cheaply copied from npm with some of the keywords replaced */
 
 ;(function () {
-  // windows: running "ysend blah" in this folder will invoke WSH, not node.
+  // windows: running "gafd blah" in this folder will invoke WSH, not node.
   /*global WScript*/
   if (typeof WScript !== 'undefined') {
     WScript.echo(
@@ -19,7 +19,7 @@
     return;
   }
 
-  process.title = 'gaf-source';
+  process.title = 'gafd';
 
   let program = require('commander');
 
