@@ -1,6 +1,6 @@
 {
   "name": "coinbase-local",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "description": "GAF visualization of crypto",
   "main": "index.js",
   "repository": "git@github.com:waTeim/coinbase-local.git",
