@@ -5,6 +5,9 @@ services:
     image: cgaf-infra_coinbase-local
     environment:
       PRODUCTS: BTC-USD
+  pg:
+    build: pg
+    image: cgaf-infra_pg
 networks:
   default:
     external:

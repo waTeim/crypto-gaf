@@ -1,0 +1,37 @@
+version: '3.7'
+services:
+  collect:
+    build:
+      context: docker-components/cgaf-datasource/collect
+    image: cgaf-datasource_collect
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: pg
+      POSTGRES_DB: postgres
+      SLEEP_INTERVAL: 0.25
+  calculate:
+    build:
+      context: docker-components/cgaf-datasource/calculate
+    image: cgaf-datasource_calculate
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: pg
+      POSTGRES_DB: postgres
+      SLEEP_INTERVAL: 0.5
+  gafd:
+    build:
+      context: .
+    image: cgaf-gafd
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: pg
+      POSTGRES_DB: postgres
+    ports:
+      - 6350:63500
+secrets:
+  pg_pw:
+    file: ./pg_pw.txt
+networks:
+  default:
+    external:
+      name: cgaf

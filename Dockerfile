@@ -14,5 +14,5 @@ RUN tsc
 RUN cg
 RUN npm run install-bin
 RUN dos2unix bin/gafd
-EXPOSE 63200
+EXPOSE 63500
 CMD bash entrypoint.sh

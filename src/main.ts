@@ -17,7 +17,7 @@ export default async function main(program:any)
 {
   let pgUrl:string = program.args[0];
   let pgUser = "postgres";
-  let pgHost = "localhost";
+  let pgHost = "pg";
   let pgDb = "postgres";
   let pgPw = "";
 
@@ -31,6 +31,13 @@ export default async function main(program:any)
     if(pgPw.length > 0) pgUrl = `postgresql://${pgUser}:${pgPw}@${pgHost}/${pgDb}`;
     else pgUrl = `postgresql://${pgUser}@${pgHost}/${pgDb}`;
   }
-  if(pgUrl.length > 0) await initServer(pgUrl);
-  else program.help();
+  try
+  {
+    if(pgUrl.length > 0) await initServer(pgUrl);
+    else program.help();
+  }
+  catch(e)
+  {
+    console.log("failed to start: ",e);
+  }
 }

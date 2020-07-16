@@ -6,7 +6,7 @@
 	// The optional 'runArgs' property can be used to specify additional runtime arguments.
 	"runArgs": [
 		"--net=cgaf",
-		"--net-alias=pg",
+		"--net-alias=gafd",
 		"-p",
 		"63500:63500"
 		// Uncomment the line if you will use a ptrace-based debugger like C++, Go, and Rust.

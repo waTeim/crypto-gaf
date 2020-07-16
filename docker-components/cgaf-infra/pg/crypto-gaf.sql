@@ -25,3 +25,5 @@ CREATE TABLE crypto_gaf.samples
   product text references crypto_gaf.gafs(product),
   sample_id bigserial PRIMARY KEY
 );
+
+INSERT INTO crypto_gaf.gafs (product,max_size) VALUES ('BTC-USD',400);
