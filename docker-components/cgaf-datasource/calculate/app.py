@@ -48,12 +48,12 @@ def getMidpointImages(midpointFields):
       images.append(base64.b64encode(image.getvalue()).decode())
    return images
 
-def getAskPriceSamples(conn,cur,product,maxSize):
+def getAskSamples(conn,cur,product,maxSize):
    cur.execute( """
-      SELECT ask_prices FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
+      SELECT ask_prices,ask_sizes FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
       """,(product,maxSize))
    rows = cur.fetchall()
-   return [ x[0] for x in rows ]
+   return [ x[0] for x in rows ],[ x[1] for x in rows ]
 
 def getAskPriceFields(samples,size):
    G = GramianAngularField(image_size=size,method='summation')
@@ -80,12 +80,12 @@ def getAskPriceImages(askPriceFields):
    images.append(base64.b64encode(image.getvalue()).decode())
    return images
 
-def getBidPriceSamples(conn,cur,product,maxSize):
+def getBidSamples(conn,cur,product,maxSize):
    cur.execute( """
-      SELECT bid_prices FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
+      SELECT bid_prices,bid_sizes FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
       """,(product,maxSize))
    rows = cur.fetchall()
-   return [ x[0] for x in rows ]
+   return [ x[0] for x in rows ],[ x[1] for x in rows ]
 
 def getBidPriceFields(samples,size):
    G = GramianAngularField(image_size=size,method='summation')
@@ -106,11 +106,43 @@ def getBidPriceImages(bidPriceFields):
    images.append(base64.b64encode(image.getvalue()).decode())
    return images
 
-def doUpdate(conn,cur,product,size,midpoint,midpointImages,askPriceImages,bidPriceImages):
+def getAskBidFields(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamples,size):
+   numSamples = len(askPriceSamples)
+   depth = len(askPriceSamples[0])
+   samples = []
+   for i in range(numSamples):
+      samples.append([])
+      for j in range(depth): 
+         samples[i].append((askPriceSamples[i][j]*askSizeSamples[i][j] - bidPriceSamples[i][j]*bidSizeSamples[i][j])/(askSizeSamples[i][j] + bidSizeSamples[i][j]))
+   G = GramianAngularField(image_size=size,method='summation')
+   S = np.transpose(np.array(samples))
+   T = G.fit_transform(S)
+   return T
+   
+def getAskBidImages(askBidFields):
+   images = []
+   #for i in range(askPriceFields.shape[0]):
+   #   scaled = ((askPriceFields[i] + 1)/2)*255
+   #   formatted = scaled.astype(np.uint8)
+   #   image = io.BytesIO()
+   #   PIL.Image.fromarray(formatted).save(image,'png')
+   #   images.append(base64.b64encode(image.getvalue()).decode())
+   stack = []
+   for i in range(3):
+      scaled = ((askBidFields[i] + 1)/2)*255
+      formatted = scaled.astype(np.uint8)
+      stack.append(formatted)
+   rgb = np.stack(stack,axis=2)
+   image = io.BytesIO()
+   PIL.Image.fromarray(rgb).save(image,'png')
+   images.append(base64.b64encode(image.getvalue()).decode())
+   return images
+
+def doUpdate(conn,cur,product,size,midpoint,midpointImages,askPriceImages,bidPriceImages,askBidImages):
    sql = """
-      UPDATE crypto_gaf.gafs SET midpoint = %s,midpoint_images = %s,ask_price_images = %s,bid_price_images = %s,size = %s WHERE product = %s 
+      UPDATE crypto_gaf.gafs SET midpoint = %s,midpoint_images = %s,ask_price_images = %s,bid_price_images = %s,ask_bid_images = %s,size = %s WHERE product = %s 
    """
-   cur.execute(sql,(midpoint,midpointImages,askPriceImages,bidPriceImages,size,product))
+   cur.execute(sql,(midpoint,midpointImages,askPriceImages,bidPriceImages,askBidImages,size,product))
 
 def main(args):
    postgresUser = "postgres"
@@ -141,17 +173,19 @@ def main(args):
             product = gafInfo[i][0]
             maxSize = gafInfo[i][1]
             midpointSamples = getMidpointSamples(conn,cur,product,maxSize)
-            askPriceSamples = getAskPriceSamples(conn,cur,product,maxSize)
-            bidPriceSamples = getBidPriceSamples(conn,cur,product,maxSize)
+            askPriceSamples,askSizeSamples = getAskSamples(conn,cur,product,maxSize)
+            bidPriceSamples,bidSizeSamples = getBidSamples(conn,cur,product,maxSize)
             size = len(midpointSamples)
             if size >= 10:
                midpointFields = getMidpointFields(midpointSamples,size)
                askPriceFields = getAskPriceFields(askPriceSamples,size)
                bidPriceFields = getBidPriceFields(bidPriceSamples,size)
+               askBidFields = getAskBidFields(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamples,size)
                midpointImages = getMidpointImages(midpointFields)
                askPriceImages = getAskPriceImages(askPriceFields)
                bidPriceImages = getBidPriceImages(bidPriceFields)
-               doUpdate(conn,cur,product,size,midpointSamples[0],midpointImages,askPriceImages,bidPriceImages)
+               askBidImages = getAskBidImages(askBidFields)
+               doUpdate(conn,cur,product,size,midpointSamples[0],midpointImages,askPriceImages,bidPriceImages,askBidImages)
          conn.commit()
          cur.close()
          currentTime = time.time()

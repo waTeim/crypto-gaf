@@ -35,12 +35,13 @@ export default class GAFManager extends ControllerBase
     if(g != null) 
     {
       let askPriceImages = g.getAskPriceImages();
+      let askBidImages = g.getAskBidImages();
       let bidPriceImages = g.getBidPriceImages();
       let midpoint = g.getMidpoint();
       let midpointImages = g.getMidpointImages();
       let size = g.getSize();
 
-      return { midpoint:midpoint, png1:midpointImages[0], png2:askPriceImages[0], png3:bidPriceImages[0], png4:midpointImages[1], size:size, date:new Date() };
+      return { midpoint:midpoint, png1:askBidImages[0], png2:askPriceImages[0], png3:bidPriceImages[0], png4:midpointImages[1], size:size, date:new Date() };
     }
     return { midpoint:null, png1:null, png2:null, png3:null, png4:null, size:0, date:new Date() };
   }

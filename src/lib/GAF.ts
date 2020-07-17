@@ -7,6 +7,7 @@ export class GAF
 
   protected askPriceImages:string[];
   protected bidPriceImages:string[];
+  protected askBidImages:string[];
   protected maxSize:number;
   protected midpoint:number;
   protected midpointImages:string[];
@@ -25,6 +26,7 @@ export class GAF
       SELECT
         ask_price_images,
         bid_price_images,
+        ask_bid_images,
         max_size,
         midpoint,
         midpoint_images,
@@ -35,6 +37,7 @@ export class GAF
       `,[this.product]);
     if(rows != null && rows.length != 0) {
       this.askPriceImages = rows[0].ask_price_images;
+      this.askBidImages = rows[0].ask_bid_images;
       this.bidPriceImages = rows[0].bid_price_images;
       this.midpoint = rows[0].midpoint;
       this.midpointImages = rows[0].midpoint_images;
@@ -84,6 +87,11 @@ export class GAF
   getAskPriceImages():string[]
   {
     return this.askPriceImages;
+  }
+
+  getAskBidImages():string[]
+  {
+    return this.askBidImages;
   }
 
   getBidPriceImages():string[]

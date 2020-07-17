@@ -5,9 +5,8 @@ CREATE SCHEMA crypto_gaf;
 CREATE TABLE crypto_gaf.gafs
 (
   ask_price_images text[],
-  ask_size_images text[],
   bid_price_images text[],
-  bid_size_images text[],
+  ask_bid_images text[],
   max_size integer,
   midpoint numeric,
   midpoint_images text[],
