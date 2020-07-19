@@ -6,7 +6,7 @@ import psycopg2.extras
 import time
 import requests
 
-def getExchangeInfo(product,aggregation,depth):
+def getOrderbookInfo(product,aggregation,depth):
    res = requests.get('http://coinbase-local:63200/api/orderBook/interval',params={ 'product':product, 'aggregation':aggregation, 'depth':depth })
    if res.status_code == 200:
       parsed = res.json()
@@ -14,8 +14,19 @@ def getExchangeInfo(product,aggregation,depth):
          midpoint = parsed['midpoint']
          bids = parsed['bids']
          asks = parsed['asks']
-         print("midpoint = ",midpoint)
          return midpoint,bids,asks
+      print("null respond from coinbase-local")
+   return None,None,None
+
+def getMarketOrderInfo(product,since):
+   res = requests.get('http://coinbase-local:63200/api/orderBook/marketOrders',params={ 'product':product, 'since':since })
+   if res.status_code == 200:
+      parsed = res.json()
+      if parsed != None and parsed.get('sequence',None) != None and parsed.get('buy',None) != None and parsed.get('sell',None) != None:
+         sequence = parsed['sequence']
+         buy = parsed['buy']
+         sell = parsed['sell']
+         return sequence,buy,sell
       print("null respond from coinbase-local")
    return None,None,None
 
@@ -26,12 +37,21 @@ def getGafInfo(conn,cur):
    rows = cur.fetchall()
    return [ [x[0],x[1]] for x in rows ]
 
-def doInsert(conn,cur,bids,asks,midpoint,product):
+def doInsert(conn,cur,asks,bids,buy,midpoint,product,sell):
    sql = """
-      INSERT INTO crypto_gaf.samples (ask_prices,ask_sizes,bid_prices,bid_sizes,midpoint,product)
-      VALUES (%s,%s,%s,%s,%s,%s)
+      INSERT INTO crypto_gaf.samples (ask_prices,ask_sizes,bid_prices,bid_sizes,buys,midpoint,product,sells)
+      VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
    """
-   cur.execute(sql,([float(x[0]) for x in asks],[float(x[1]) for x in asks],[float(x[0]) for x in bids],[float(x[1]) for x in bids],float(midpoint),product))
+   cur.execute(sql,(
+      [ float(x[0]) for x in asks ],
+      [ float(x[1]) for x in asks ],
+      [ float(x[0]) for x in bids ],
+      [ float(x[1]) for x in bids ],
+      [ float(buy['price']), float(buy['size']), float(buy['numOrders']) ],
+      float(midpoint),
+      product,
+      [ float(sell['price']), float(sell['size']), float(sell['numOrders']) ]
+   ))
    #conn.commit()
    #cur.close()
 
@@ -68,6 +88,7 @@ def main(args):
    iterations = None
    done = False
    btime = 5
+   sequences = {}
    if os.environ.get('POSTGRES_USER') != None: postgresUser = os.environ.get('POSTGRES_USER')
    if os.environ.get('POSTGRES_PW') != None: postgresPw = os.environ.get('POSTGRES_PW')
    if os.environ.get('POSTGRES_HOST') != None: postgresHost = os.environ.get('POSTGRES_HOST')
@@ -86,9 +107,12 @@ def main(args):
          cur = conn.cursor()
          gafInfo = getGafInfo(conn,cur)
          for i in range(len(gafInfo)):
-            midpoint,asks,bids = getExchangeInfo(gafInfo[i][0],aggregation,depth)
-            doInsert(conn,cur,asks,bids,midpoint,gafInfo[i][0])
-            doDelete(conn,cur,gafInfo[i][0],gafInfo[i][1])
+            product = gafInfo[i][0]
+            sequence = sequences.get(product,None)
+            midpoint,asks,bids = getOrderbookInfo(product,aggregation,depth)
+            sequences[product],buy,sell = getMarketOrderInfo(product,sequence)
+            doInsert(conn,cur,asks,bids,buy,midpoint,product,sell)
+            doDelete(conn,cur,product,gafInfo[i][1])
          conn.commit()
          cur.close()
          currentTime = time.time()

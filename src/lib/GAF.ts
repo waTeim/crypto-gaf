@@ -5,13 +5,13 @@ export class GAF
   protected static pool:Pool;
   protected static gafs:Map<string,GAF>;
 
-  protected askPriceImages:string[];
-  protected bidPriceImages:string[];
-  protected askBidImages:string[];
+  protected orderbookImage:string;
+  protected buyImage:string;
   protected maxSize:number;
   protected midpoint:number;
   protected midpointImages:string[];
   protected product:string;
+  protected sellImage:string;
   protected size:number;
 
   constructor(product:string)
@@ -24,24 +24,24 @@ export class GAF
     
     let rows = await connection.query(`
       SELECT
-        ask_price_images,
-        bid_price_images,
-        ask_bid_images,
+        orderbook_image,
+        buy_image,
         max_size,
         midpoint,
         midpoint_images,
+        sell_image,
         size
       FROM 
         crypto_gaf.gafs 
       WHERE product = $1
       `,[this.product]);
     if(rows != null && rows.length != 0) {
-      this.askPriceImages = rows[0].ask_price_images;
-      this.askBidImages = rows[0].ask_bid_images;
-      this.bidPriceImages = rows[0].bid_price_images;
+      this.orderbookImage = rows[0].orderbook_image;
+      this.buyImage = rows[0].buy_image;
       this.midpoint = rows[0].midpoint;
       this.midpointImages = rows[0].midpoint_images;
       this.maxSize = rows[0].max_size;
+      this.sellImage = rows[0].sell_image;
       this.size = rows[0].size;
     }
     connection.free();
@@ -84,19 +84,14 @@ export class GAF
     return GAF.gafs.get(product);
   }
 
-  getAskPriceImages():string[]
+  getOrderbookImage():string
   {
-    return this.askPriceImages;
+    return this.orderbookImage;
   }
 
-  getAskBidImages():string[]
+  getBuyImage():string
   {
-    return this.askBidImages;
-  }
-
-  getBidPriceImages():string[]
-  {
-    return this.bidPriceImages;
+    return this.buyImage;
   }
 
   getMidpoint():number
@@ -107,6 +102,11 @@ export class GAF
   getMidpointImages():string[]
   {
     return this.midpointImages;
+  }
+
+  getSellImage():string
+  {
+    return this.sellImage;
   }
 
   getSize()

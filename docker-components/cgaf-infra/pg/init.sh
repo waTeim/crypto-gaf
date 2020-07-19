@@ -1,1 +1,1 @@
-psql -f crypto-gaf.sql
+psql -f crypto-gaf.sql -h pg
