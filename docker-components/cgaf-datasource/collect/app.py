@@ -83,7 +83,7 @@ def main(args):
    postgresDb = "postgres"
    sleepInterval = 1
    aggregation = 10
-   depth = 5
+   depth = 3
    conn = None
    startTime = None
    iterations = None

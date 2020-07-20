@@ -135,12 +135,12 @@ def fieldToRGB(field,permutation=None):
 def getBuyAndSellSamples(conn,cur,product,maxSize):
    cur.execute( """
       SELECT 
-         avg(buys[1]) over (order by sample_id desc rows between 10 preceding and 10 following),
-         avg(buys[2]) over (order by sample_id desc rows between 10 preceding and 10 following),
-         avg(buys[3]) over (order by sample_id desc rows between 10 preceding and 10 following),
-         avg(sells[1]) over (order by sample_id desc rows between 10 preceding and 10 following),
-         avg(sells[2]) over (order by sample_id desc rows between 10 preceding and 10 following),
-         avg(sells[3]) over (order by sample_id desc rows between 10 preceding and 10 following)
+         avg(buys[1]) over (order by sample_id desc rows between 5 preceding and 5 following),
+         avg(buys[2]) over (order by sample_id desc rows between 5 preceding and 5 following),
+         avg(buys[3]) over (order by sample_id desc rows between 5 preceding and 5 following),
+         avg(sells[1]) over (order by sample_id desc rows between 5 preceding and 5 following),
+         avg(sells[2]) over (order by sample_id desc rows between 5 preceding and 5 following),
+         avg(sells[3]) over (order by sample_id desc rows between 5 preceding and 5 following)
       FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
       """,(product,maxSize))
    rows = cur.fetchall()
