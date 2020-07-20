@@ -119,10 +119,12 @@ def getOrderbookField(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamp
    T = G.fit_transform(S)
    return T
    
-def fieldToRGB(field):
+def fieldToRGB(field,permutation=None):
    stack = []
    for i in range(3):
-      scaled = ((field[i] + 1)/2)*255
+      if permutation != None: index = permutation[i]
+      else: index = i
+      scaled = ((field[index] + 1)/2)*255
       formatted = scaled.astype(np.uint8)
       stack.append(formatted)
    rgb = np.stack(stack,axis=2)
@@ -202,7 +204,7 @@ def main(args):
                sellField = getSellField(sellSamples,size)
                midpointImages = getMidpointImages(midpointFields)
                orderbookImage = fieldToRGB(orderbookField)
-               buyImage = fieldToRGB(buyField)
+               buyImage = fieldToRGB(buyField,permutation=[1,0,2])
                sellImage = fieldToRGB(sellField)
                doUpdate(conn,cur,product,size,midpointSamples[0],midpointImages,orderbookImage,buyImage,sellImage)
          conn.commit()

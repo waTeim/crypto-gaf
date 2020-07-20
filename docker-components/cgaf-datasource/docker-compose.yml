@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_HOST: pg
       POSTGRES_DB: postgres
-      SLEEP_INTERVAL: 0.25
+      SLEEP_INTERVAL: 1.0
   calculate:
     build: calculate
     image: cgaf-datasource_calculate
@@ -15,7 +15,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_HOST: pg
       POSTGRES_DB: postgres
-      SLEEP_INTERVAL: 0.5
+      SLEEP_INTERVAL: 1.0
 secrets:
   pg_pw:
     file: ./pg_pw.txt

@@ -27,4 +27,4 @@ CREATE TABLE crypto_gaf.samples
   sells numeric[]
 );
 
-INSERT INTO crypto_gaf.gafs (product,max_size) VALUES ('BTC-USD',400);
+INSERT INTO crypto_gaf.gafs (product,max_size) VALUES ('BTC-USD',600);

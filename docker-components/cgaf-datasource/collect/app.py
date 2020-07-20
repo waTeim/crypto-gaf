@@ -26,6 +26,7 @@ def getMarketOrderInfo(product,since):
          sequence = parsed['sequence']
          buy = parsed['buy']
          sell = parsed['sell']
+         #print("sequence = {0} buy = {1} sell = {2}".format(sequence,buy,sell))
          return sequence,buy,sell
       print("null respond from coinbase-local")
    return None,None,None
