@@ -21,7 +21,7 @@
     "cors": "^2.8.5",
     "exponential-backoff": "^3.0.0",
     "mkdirp": "^1.0.4",
-    "moment": "^2.24.0",
+    "moment": "^2.29.2",
     "pg": "^8.3.0",
     "request": "^2.88.2"
   },
