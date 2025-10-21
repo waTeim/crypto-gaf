@@ -1,13 +1,19 @@
 import argparse
 import json
 import os
-import psycopg2
-import psycopg2.extras
+import psycopg
 import time
 import requests
+from urllib.parse import urljoin
 
-def getOrderbookInfo(product,aggregation,depth):
-   res = requests.get('http://coinbase-local:63200/api/orderBook/interval',params={ 'product':product, 'aggregation':aggregation, 'depth':depth })
+COINBASE_URL = os.environ.get('COINBASE_URL', 'http://coinbase-local:4201')
+
+def _coinbase_path(path):
+   base = COINBASE_URL if COINBASE_URL.endswith('/') else COINBASE_URL + '/'
+   return urljoin(base, path.lstrip('/'))
+
+def getOrderbookInfo(product,aggregation,depth,timeout):
+   res = requests.get(_coinbase_path('/api/orderBook/interval'),params={ 'product':product, 'aggregation':aggregation, 'depth':depth },timeout=timeout)
    if res.status_code == 200:
       parsed = res.json()
       if parsed != None and parsed.get('midpoint',None) != None and parsed.get('asks',None) != None and parsed.get('bids',None) != None:
@@ -18,8 +24,8 @@ def getOrderbookInfo(product,aggregation,depth):
       print("null respond from coinbase-local")
    return None,None,None
 
-def getMarketOrderInfo(product,since):
-   res = requests.get('http://coinbase-local:63200/api/orderBook/marketOrders',params={ 'product':product, 'since':since })
+def getMarketOrderInfo(product,since,timeout):
+   res = requests.get(_coinbase_path('/api/orderBook/marketOrders'),params={ 'product':product, 'since':since },timeout=timeout)
    if res.status_code == 200:
       parsed = res.json()
       if parsed != None and parsed.get('sequence',None) != None and parsed.get('buy',None) != None and parsed.get('sell',None) != None:
@@ -79,11 +85,13 @@ def backoff(btime):
 def main(args):
    postgresUser = "postgres"
    postgresPw = None
-   postgresHost = "localhost"
+   postgresHost = "postgresql"
+   postgresPort = 5432
    postgresDb = "postgres"
    sleepInterval = 1
    aggregation = 10
    depth = 3
+   httpTimeout = 10
    conn = None
    startTime = None
    iterations = None
@@ -93,25 +101,31 @@ def main(args):
    if os.environ.get('POSTGRES_USER') != None: postgresUser = os.environ.get('POSTGRES_USER')
    if os.environ.get('POSTGRES_PW') != None: postgresPw = os.environ.get('POSTGRES_PW')
    if os.environ.get('POSTGRES_HOST') != None: postgresHost = os.environ.get('POSTGRES_HOST')
+   if os.environ.get('POSTGRES_PORT') != None: postgresPort = int(os.environ.get('POSTGRES_PORT'))
    if os.environ.get('POSTGRES_DB') != None: postgresDb = os.environ.get('POSTGRES_DB')
    if os.environ.get('SLEEP_INTERVAL') != None: sleepInterval = float(os.environ.get('SLEEP_INTERVAL'))
+   if os.environ.get('HTTP_TIMEOUT') != None: httpTimeout = float(os.environ.get('HTTP_TIMEOUT'))
    if args.pg_user != None: postgresUser = args.pg_user
    if args.pg_pw != None: postgresPw = args.pg_pw
    if args.pg_host != None: postgresHost = args.pg_host
+   if args.pg_port != None: postgresPort = int(args.pg_port)
    if args.db != None: postgresDb = args.db
    if args.sleep != None: sleepInterval = float(args.sleep)
+   if postgresPw is None and os.path.exists('/run/secrets/pg_pw'):
+      with open('/run/secrets/pg_pw') as secret:
+         postgresPw = secret.read().strip()
    while not done:
       if startTime == None: startTime = time.time()
       if iterations == None: iterations = 0
       try:
-         if conn == None: conn = psycopg2.connect(host=postgresHost,dbname=postgresDb,user=postgresUser,password=postgresPw)
+         if conn is None: conn = psycopg.connect(host=postgresHost, port=postgresPort, dbname=postgresDb, user=postgresUser, password=postgresPw)
          cur = conn.cursor()
          gafInfo = getGafInfo(conn,cur)
          for i in range(len(gafInfo)):
             product = gafInfo[i][0]
             sequence = sequences.get(product,None)
-            midpoint,asks,bids = getOrderbookInfo(product,aggregation,depth)
-            sequences[product],buy,sell = getMarketOrderInfo(product,sequence)
+            midpoint,asks,bids = getOrderbookInfo(product,aggregation,depth,httpTimeout)
+            sequences[product],buy,sell = getMarketOrderInfo(product,sequence,httpTimeout)
             doInsert(conn,cur,asks,bids,buy,midpoint,product,sell)
             doDelete(conn,cur,product,gafInfo[i][1])
          conn.commit()
@@ -122,7 +136,7 @@ def main(args):
          if(sleepTime < 0): sleepTime = 0
          btime = 5
          time.sleep(sleepTime)
-      except (psycopg2.OperationalError,psycopg2.DatabaseError) as e:
+      except (psycopg.OperationalError, psycopg.DatabaseError) as e:
          print(e)
          conn = None
          btime = backoff(btime)
@@ -138,6 +152,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--pg_user', help="postgres user")
 parser.add_argument('--pg_pw', help="postgres password")
 parser.add_argument('--pg_host', help="postgres host")
+parser.add_argument('--pg_port', help="postgres port")
 parser.add_argument('--db', help="postgres db")
 parser.add_argument('--kafka', help="kafka host")
 parser.add_argument('--sleep', help="sleep interval in seconds")

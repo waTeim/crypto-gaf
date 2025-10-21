@@ -1,0 +1,119 @@
+{{- if .Values.collect.enabled }}
+{{- $pgHost := include "crypto-gaf.postgres.host" . -}}
+{{- $pgPort := include "crypto-gaf.postgres.port" . -}}
+{{- $pgUser := include "crypto-gaf.postgres.user" . -}}
+{{- $pgDb := include "crypto-gaf.postgres.database" . -}}
+{{- $coinbaseURL := printf "%s://%s:%d" .Values.global.coinbase.scheme .Values.global.coinbase.host (int .Values.global.coinbase.port) -}}
+{{- $initRegistry := default "" .Values.collect.init.image.registry -}}
+{{- $initRepository := default "postgres" .Values.collect.init.image.repository -}}
+{{- $initTag := default "16-alpine" .Values.collect.init.image.tag -}}
+{{- $initImage := ternary (printf "%s/%s:%s" $initRegistry $initRepository $initTag) (printf "%s:%s" $initRepository $initTag) (ne $initRegistry "") -}}
+{{- $initPullPolicy := default "IfNotPresent" .Values.collect.init.image.pullPolicy -}}
+{{- $collectImage := include "crypto-gaf.image" (dict "root" . "component" "collect") -}}
+{{- $collectPullPolicy := include "crypto-gaf.imagePullPolicy" (dict "root" . "component" "collect") -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crypto-gaf.collect.fullname" . }}
+  labels:
+    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "collect") | nindent 4 }}
+spec:
+  replicas: {{ .Values.collect.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "collect") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "collect") | nindent 8 }}
+      {{- with .Values.collect.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      initContainers:
+        - name: init-db
+          image: {{ $initImage | quote }}
+          imagePullPolicy: {{ $initPullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: PGPASSWORD
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+          volumeMounts:
+            - name: crypto-gaf-schema
+              mountPath: /schema/schema.sql
+              subPath: schema.sql
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+                echo "waiting for postgres..."
+                sleep 5
+              done
+              psql --host "$POSTGRES_HOST" --port "$POSTGRES_PORT" --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" -f /schema/schema.sql
+          resources:
+            {{- toYaml .Values.collect.init.resources | nindent 12 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collect.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: collect
+          image: {{ $collectImage | quote }}
+          imagePullPolicy: {{ $collectPullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: POSTGRES_PW
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+            - name: SLEEP_INTERVAL
+              value: {{ printf "%v" .Values.collect.sleepInterval | quote }}
+            - name: HTTP_TIMEOUT
+              value: {{ printf "%v" .Values.collect.httpTimeout | quote }}
+            - name: COINBASE_URL
+              value: {{ $coinbaseURL | quote }}
+            {{- with .Values.collect.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.collect.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.collect.resources | nindent 12 }}
+      {{- with .Values.collect.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collect.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.collect.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: crypto-gaf-schema
+          configMap:
+            name: {{ include "crypto-gaf.componentName" (dict "root" . "component" "schema") }}
+{{- end }}

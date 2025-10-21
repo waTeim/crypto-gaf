@@ -1,0 +1,10 @@
+Crypto GAF data services have been deployed to namespace {{ .Release.Namespace }}.
+
+- Collect Deployment: {{ include "crypto-gaf.collect.fullname" . }}.
+- Calculate Deployment: {{ include "crypto-gaf.calculate.fullname" . }}.
+- PostgreSQL release: {{ include "crypto-gaf.postgres.host" . }} (Bitnami dependency).
+
+Verify pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+The collect worker expects the coinbase-local service at {{ printf "%s://%s:%d" .Values.global.coinbase.scheme .Values.global.coinbase.host (int .Values.global.coinbase.port) }}.

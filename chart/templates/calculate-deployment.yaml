@@ -1,0 +1,104 @@
+{{- if .Values.calculate.enabled }}
+{{- $pgHost := include "crypto-gaf.postgres.host" . -}}
+{{- $pgPort := include "crypto-gaf.postgres.port" . -}}
+{{- $pgUser := include "crypto-gaf.postgres.user" . -}}
+{{- $pgDb := include "crypto-gaf.postgres.database" . -}}
+{{- $initRegistry := default "" .Values.calculate.init.image.registry -}}
+{{- $initRepository := default "postgres" .Values.calculate.init.image.repository -}}
+{{- $initTag := default "16-alpine" .Values.calculate.init.image.tag -}}
+{{- $initImage := ternary (printf "%s/%s:%s" $initRegistry $initRepository $initTag) (printf "%s:%s" $initRepository $initTag) (ne $initRegistry "") -}}
+{{- $initPullPolicy := default "IfNotPresent" .Values.calculate.init.image.pullPolicy -}}
+{{- $calculateImage := include "crypto-gaf.image" (dict "root" . "component" "calculate") -}}
+{{- $calculatePullPolicy := include "crypto-gaf.imagePullPolicy" (dict "root" . "component" "calculate") -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crypto-gaf.calculate.fullname" . }}
+  labels:
+    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "calculate") | nindent 4 }}
+spec:
+  replicas: {{ .Values.calculate.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "calculate") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "calculate") | nindent 8 }}
+      {{- with .Values.calculate.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: {{ $initImage | quote }}
+          imagePullPolicy: {{ $initPullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: PGPASSWORD
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+                echo "calculate init: waiting for postgres..."
+                sleep 5
+              done
+          resources:
+            {{- toYaml .Values.calculate.init.resources | nindent 12 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.calculate.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: calculate
+          image: {{ $calculateImage | quote }}
+          imagePullPolicy: {{ $calculatePullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: POSTGRES_PW
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+            - name: SLEEP_INTERVAL
+              value: {{ printf "%v" .Values.calculate.sleepInterval | quote }}
+            {{- with .Values.calculate.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.calculate.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.calculate.resources | nindent 12 }}
+      {{- with .Values.calculate.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.calculate.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.calculate.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

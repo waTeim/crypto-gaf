@@ -1,0 +1,119 @@
+nameOverride: ""
+fullnameOverride: ""
+image:
+  registry: ""
+  name: crypto-gaf
+  tag: latest
+  pullPolicy: IfNotPresent
+
+
+global:
+  imagePullSecrets: []
+  coinbase:
+    host: coinbase-local
+    port: 4201
+    scheme: http
+
+postgresql:
+  enabled: true
+  architecture: standalone
+  auth:
+    enablePostgresUser: true
+    postgresPassword: ""
+    username: ""
+    password: ""
+    database: postgres
+    existingSecret: ""
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    service:
+      hostname: ""
+      ports:
+        postgresql: 5432
+
+spa:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: ""
+    name: ""
+    tag: ""
+    pullPolicy: ""
+  products:
+    - name: BTC-USD
+      maxSize: 600
+  resources: {}
+  init:
+    image:
+      registry: ""
+      repository: postgres
+      tag: 16-alpine
+      pullPolicy: IfNotPresent
+    resources: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 63500
+
+collect:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: ""
+    name: ""
+    tag: ""
+    pullPolicy: ""
+  init:
+    image:
+      registry: ""
+      repository: postgres
+      tag: 16-alpine
+      pullPolicy: IfNotPresent
+    resources: {}
+  sleepInterval: 0.25
+  httpTimeout: 10
+  resources: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+calculate:
+  enabled: true
+  replicaCount: 1
+  image:
+    registry: ""
+    repository: ""
+    name: ""
+    tag: ""
+    pullPolicy: ""
+  sleepInterval: 0.5
+  init:
+    image:
+      registry: ""
+      repository: postgres
+      tag: 16-alpine
+      pullPolicy: IfNotPresent
+    resources: {}
+  resources: {}
+  podAnnotations: {}
+  podSecurityContext: {}
+  securityContext: {}
+  env: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

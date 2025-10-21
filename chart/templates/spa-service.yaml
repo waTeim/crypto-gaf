@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "crypto-gaf.componentName" (dict "root" . "component" "spa") }}
+  labels:
+    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "spa") | nindent 4 }}
+spec:
+  type: {{ default "ClusterIP" .Values.spa.service.type }}
+  ports:
+    - name: http
+      port: {{ default 80 .Values.spa.service.port }}
+      targetPort: {{ default 63500 .Values.spa.service.targetPort }}
+  selector:
+    {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "spa") | nindent 4 }}

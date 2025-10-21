@@ -1,0 +1,106 @@
+{{- if .Values.spa.enabled }}
+{{- $pgHost := include "crypto-gaf.postgres.host" . -}}
+{{- $pgPort := include "crypto-gaf.postgres.port" . -}}
+{{- $pgUser := include "crypto-gaf.postgres.user" . -}}
+{{- $pgDb := include "crypto-gaf.postgres.database" . -}}
+{{- $initRegistry := default "" .Values.spa.init.image.registry -}}
+{{- $initRepository := default "postgres" .Values.spa.init.image.repository -}}
+{{- $initTag := default "16-alpine" .Values.spa.init.image.tag -}}
+{{- $initImage := ternary (printf "%s/%s:%s" $initRegistry $initRepository $initTag) (printf "%s:%s" $initRepository $initTag) (ne $initRegistry "") -}}
+{{- $initPullPolicy := default "IfNotPresent" .Values.spa.init.image.pullPolicy -}}
+{{- $spaImage := include "crypto-gaf.image" (dict "root" . "component" "spa") -}}
+{{- $spaPullPolicy := include "crypto-gaf.imagePullPolicy" (dict "root" . "component" "spa") -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "crypto-gaf.componentName" (dict "root" . "component" "spa") }}
+  labels:
+    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "spa") | nindent 4 }}
+spec:
+  replicas: {{ .Values.spa.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "spa") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "spa") | nindent 8 }}
+      {{- with .Values.spa.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: {{ $initImage | quote }}
+          imagePullPolicy: {{ $initPullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: PGPASSWORD
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
+                echo "spa init: waiting for postgres..."
+                sleep 5
+              done
+          resources:
+            {{- toYaml .Values.spa.init.resources | nindent 12 }}
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.spa.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: spa
+          image: {{ $spaImage | quote }}
+          imagePullPolicy: {{ $spaPullPolicy }}
+          env:
+            - name: PORT
+              value: "63500"
+            - name: POSTGRES_HOST
+              value: {{ $pgHost | quote }}
+            - name: POSTGRES_PORT
+              value: {{ $pgPort | quote }}
+            - name: POSTGRES_DB
+              value: {{ $pgDb | quote }}
+            - name: POSTGRES_USER
+              value: {{ $pgUser | quote }}
+            - name: POSTGRES_PW
+              {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
+            - name: SPA_PRODUCTS
+              value: {{ .Values.spa.products | toJson | quote }}
+            {{- with .Values.spa.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.spa.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.spa.resources | nindent 12 }}
+      {{- with .Values.spa.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.spa.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.spa.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}
