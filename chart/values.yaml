@@ -62,8 +62,8 @@ spa:
   affinity: {}
   service:
     type: ClusterIP
-    port: 80
-    targetPort: 63500
+    port: 4202
+    targetPort: 4202
 
 collect:
   enabled: true

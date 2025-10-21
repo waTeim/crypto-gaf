@@ -21,5 +21,5 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/bin ./bin
 COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
-EXPOSE 63500
+EXPOSE 4202
 CMD ["./entrypoint.sh"]

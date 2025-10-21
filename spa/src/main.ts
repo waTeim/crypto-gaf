@@ -3,7 +3,7 @@ import init from './init';
 let PORT:number;
 
 if(process.env.PORT != null) PORT = parseInt(process.env.PORT);
-else PORT = 63500;
+else PORT = 4202;
 
 async function initServer(pgUrl:string)
 {
