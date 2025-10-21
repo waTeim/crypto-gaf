@@ -13,6 +13,7 @@ output
 .devcontainer/local.env
 auth
 make.env
+*.tgz
 
 
 # OS generated files #
