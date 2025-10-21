@@ -69,7 +69,7 @@ spec:
           imagePullPolicy: {{ $spaPullPolicy }}
           env:
             - name: PORT
-              value: "63500"
+              value: "4202"
             - name: POSTGRES_HOST
               value: {{ $pgHost | quote }}
             - name: POSTGRES_PORT
