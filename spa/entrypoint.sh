@@ -17,11 +17,11 @@ if [[ -z "${PG}" ]]; then
   fi
 fi
 
-# Start the main app so that the REST service will be available
-./bin/gafd "$PG"
 
 while [ 1 ]
 do
-  sleep 60 &
+# Start the main app so that the REST service will be available
+  ./bin/gafd "$PG"
+  sleep 10
   wait $!
 done
