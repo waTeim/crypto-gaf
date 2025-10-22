@@ -33,7 +33,7 @@ data:
       sells numeric[]
     );
 
-    {{- range .Values.spa.products }}
+    {{- range .Values.api.products }}
     INSERT INTO crypto_gaf.gafs (product, max_size)
       VALUES ('{{ .name }}', {{ default 600 .maxSize }})
       ON CONFLICT (product) DO NOTHING;

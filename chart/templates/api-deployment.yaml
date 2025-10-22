@@ -1,31 +1,31 @@
-{{- if .Values.spa.enabled }}
+{{- if .Values.api.enabled }}
 {{- $pgHost := include "crypto-gaf.postgres.host" . -}}
 {{- $pgPort := include "crypto-gaf.postgres.port" . -}}
 {{- $pgUser := include "crypto-gaf.postgres.user" . -}}
 {{- $pgDb := include "crypto-gaf.postgres.database" . -}}
-{{- $initRegistry := default "" .Values.spa.init.image.registry -}}
-{{- $initRepository := default "postgres" .Values.spa.init.image.repository -}}
-{{- $initTag := default "16-alpine" .Values.spa.init.image.tag -}}
+{{- $initRegistry := default "" .Values.api.init.image.registry -}}
+{{- $initRepository := default "postgres" .Values.api.init.image.repository -}}
+{{- $initTag := default "16-alpine" .Values.api.init.image.tag -}}
 {{- $initImage := ternary (printf "%s/%s:%s" $initRegistry $initRepository $initTag) (printf "%s:%s" $initRepository $initTag) (ne $initRegistry "") -}}
-{{- $initPullPolicy := default "IfNotPresent" .Values.spa.init.image.pullPolicy -}}
-{{- $spaImage := include "crypto-gaf.image" (dict "root" . "component" "spa") -}}
-{{- $spaPullPolicy := include "crypto-gaf.imagePullPolicy" (dict "root" . "component" "spa") -}}
+{{- $initPullPolicy := default "IfNotPresent" .Values.api.init.image.pullPolicy -}}
+{{- $apiImage := include "crypto-gaf.image" (dict "root" . "component" "api") -}}
+{{- $apiPullPolicy := include "crypto-gaf.imagePullPolicy" (dict "root" . "component" "api") -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "crypto-gaf.componentName" (dict "root" . "component" "spa") }}
+  name: {{ include "crypto-gaf.componentName" (dict "root" . "component" "api") }}
   labels:
-    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "spa") | nindent 4 }}
+    {{- include "crypto-gaf.componentLabels" (dict "root" . "component" "api") | nindent 4 }}
 spec:
-  replicas: {{ .Values.spa.replicaCount }}
+  replicas: {{ .Values.api.replicaCount }}
   selector:
     matchLabels:
-      {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "spa") | nindent 6 }}
+      {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "api") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "spa") | nindent 8 }}
-      {{- with .Values.spa.podAnnotations }}
+        {{- include "crypto-gaf.componentSelectorLabels" (dict "root" . "component" "api") | nindent 8 }}
+      {{- with .Values.api.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -50,23 +50,23 @@ spec:
             - -c
             - |
               until pg_isready -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER"; do
-                echo "spa init: waiting for postgres..."
+                echo "api init: waiting for postgres..."
                 sleep 5
               done
           resources:
-            {{- toYaml .Values.spa.init.resources | nindent 12 }}
+            {{- toYaml .Values.api.init.resources | nindent 12 }}
       {{- with .Values.global.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.spa.podSecurityContext }}
+      {{- with .Values.api.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: spa
-          image: {{ $spaImage | quote }}
-          imagePullPolicy: {{ $spaPullPolicy }}
+        - name: api
+          image: {{ $apiImage | quote }}
+          imagePullPolicy: {{ $apiPullPolicy }}
           env:
             - name: PORT
               value: "4202"
@@ -80,26 +80,26 @@ spec:
               value: {{ $pgUser | quote }}
             - name: POSTGRES_PW
               {{- include "crypto-gaf.postgres.passwordValue" . | nindent 14 }}
-            - name: SPA_PRODUCTS
-              value: {{ .Values.spa.products | toJson | quote }}
-            {{- with .Values.spa.env }}
+            - name: API_PRODUCTS
+              value: {{ .Values.api.products | toJson | quote }}
+            {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- with .Values.spa.securityContext }}
+          {{- with .Values.api.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           resources:
-            {{- toYaml .Values.spa.resources | nindent 12 }}
-      {{- with .Values.spa.nodeSelector }}
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.spa.tolerations }}
+      {{- with .Values.api.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.spa.affinity }}
+      {{- with .Values.api.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}

@@ -1,5 +1,6 @@
 Crypto GAF data services have been deployed to namespace {{ .Release.Namespace }}.
 
+- API Deployment: {{ include "crypto-gaf.componentName" (dict "root" . "component" "api") }}.
 - Collect Deployment: {{ include "crypto-gaf.collect.fullname" . }}.
 - Calculate Deployment: {{ include "crypto-gaf.calculate.fullname" . }}.
 - PostgreSQL release: {{ include "crypto-gaf.postgres.host" . }} (Bitnami dependency).

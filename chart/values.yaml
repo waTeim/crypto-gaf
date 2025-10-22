@@ -33,7 +33,7 @@ postgresql:
       ports:
         postgresql: 5432
 
-spa:
+api:
   enabled: true
   replicaCount: 1
   image:

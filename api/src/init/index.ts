@@ -14,18 +14,18 @@ async function initRouter(app: express.Application,context:any)
 
   app.use(cors());
   app.use((req, _res, next) => {
-    console.log(`[spa] ${req.method} ${req.originalUrl}`);
+    console.log(`[api] ${req.method} ${req.originalUrl}`);
     next();
   });
   app.use(bodyParser.urlencoded({ extended:false }));
   app.use(bodyParser.json());
   app.use(router.getExpressRouter());
   app.use((req, res) => {
-    console.warn(`[spa] 404 ${req.originalUrl}`);
+    console.warn(`[api] 404 ${req.originalUrl}`);
     res.status(404).json({ error: 'Not Found' });
   });
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-    console.error('[spa] handler error:', err);
+    console.error('[api] handler error:', err);
     res.status(500).json({ error: 'Internal Server Error' });
   });
 }
