@@ -71,6 +71,7 @@ The chart deploys:
 
 - `image.*` — global registry/name/tag/pullPolicy defaults shared by all services
 - `api.*`, `collect.*`, `calculate.*` — per-service configuration (replicas, env vars, init image overrides, etc.)
+- `api.ingress.*` — optional HTTP ingress configuration (disabled by default).
 - `global.coinbase.*` — endpoint for `collect` to reach `coinbase-local`
 - `postgresql.*` — overrides for the Bitnami chart
 
