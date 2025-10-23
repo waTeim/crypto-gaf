@@ -8,6 +8,7 @@ import pickle
 import PIL.Image
 import numpy as np
 import base64
+from concurrent.futures import ThreadPoolExecutor
 from pyts.image import GramianAngularField
 from pyts.image import MarkovTransitionField
 
@@ -189,33 +190,52 @@ def main(args):
       startTime = time.time()
       iterations = 0
       conn = psycopg.connect(host=postgresHost,dbname=postgresDb,user=postgresUser,password=postgresPw)
+      fellBehind = False
       while True:
          cur = conn.cursor()
          gafInfo = getGafInfo(conn,cur)
          for i in range(len(gafInfo)):
             product = gafInfo[i][0]
             maxSize = gafInfo[i][1]
+            start_time = time.time()
             midpointSamples = getMidpointSamples(conn,cur,product,maxSize)
+            query_midpoint = time.time()
             askPriceSamples,askSizeSamples = getAskSamples(conn,cur,product,maxSize)
+            query_ask = time.time()
             bidPriceSamples,bidSizeSamples = getBidSamples(conn,cur,product,maxSize)
+            query_bid = time.time()
             buySamples,sellSamples = getBuyAndSellSamples(conn,cur,product,maxSize)
+            query_trades = time.time()
             size = len(midpointSamples)
             if size >= 21: 
-               midpointFields = getMidpointFields(midpointSamples,size)
-               orderbookField = getOrderbookField(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamples,size)
-               buyField = getBuyField(buySamples,size)
-               sellField = getSellField(sellSamples,size)
+               with ThreadPoolExecutor(max_workers=4) as executor:
+                  future_midpoint = executor.submit(getMidpointFields, midpointSamples, size)
+                  future_orderbook = executor.submit(getOrderbookField, askPriceSamples, askSizeSamples, bidPriceSamples, bidSizeSamples, size)
+                  future_buy = executor.submit(getBuyField, buySamples, size)
+                  future_sell = executor.submit(getSellField, sellSamples, size)
+                  midpointFields = future_midpoint.result()
+                  orderbookField = future_orderbook.result()
+                  buyField = future_buy.result()
+                  sellField = future_sell.result()
                midpointImages = getMidpointImages(midpointFields)
                orderbookImage = fieldToRGB(orderbookField)
                buyImage = fieldToRGB(buyField,permutation=[1,0,2])
                sellImage = fieldToRGB(sellField)
                doUpdate(conn,cur,product,size,midpointSamples[0],midpointImages,orderbookImage,buyImage,sellImage)
+               calc_done = time.time()
+               print(f"calculate timings mid={query_midpoint-start_time:.3f}s ask={query_ask-query_midpoint:.3f}s bid={query_bid-query_ask:.3f}s trades={query_trades-query_bid:.3f}s transforms={calc_done-query_trades:.3f}s")
          conn.commit()
          cur.close()
          currentTime = time.time()
          iterations = iterations + 1
          sleepTime = startTime + iterations*sleepInterval - currentTime
-         if(sleepTime < 0): sleepTime = 0
+         if sleepTime < 0: sleepTime = 0
+         if sleepTime == 0:
+            if not fellBehind:
+               print('calculate: loop has no idle time; engine may be at capacity')
+               fellBehind = True
+         else:
+            fellBehind = False
          time.sleep(sleepTime)
    except Exception as e:
       print(e)
