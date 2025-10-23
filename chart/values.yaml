@@ -44,7 +44,7 @@ api:
     pullPolicy: ""
   products:
     - name: BTC-USD
-      maxSize: 600
+      maxSize: 300
   resources: {}
   init:
     image:
