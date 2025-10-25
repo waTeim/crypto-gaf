@@ -5,6 +5,7 @@ import io
 import psycopg
 import time
 import pickle
+import traceback
 import PIL.Image
 import numpy as np
 import base64
@@ -226,6 +227,7 @@ def main(args):
             print('calculate: loop has no idle time; engine may be at capacity')
          time.sleep(sleepTime)
    except Exception as e:
+      traceback.print_exception(type(e), e, e.__traceback__)
       print(e)
 
 parser = argparse.ArgumentParser()
