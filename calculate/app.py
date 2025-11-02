@@ -113,8 +113,13 @@ def getOrderbookField(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamp
    samples = []
    for i in range(numSamples):
       samples.append([])
-      for j in range(depth): 
-         samples[i].append((askPriceSamples[i][j]*askSizeSamples[i][j] - bidPriceSamples[i][j]*bidSizeSamples[i][j])/(askSizeSamples[i][j] + bidSizeSamples[i][j]))
+      for j in range(depth):
+         denominator = askSizeSamples[i][j] + bidSizeSamples[i][j]
+         if denominator == 0:
+            samples[i].append(0)
+         else:
+#            samples[i].append((askPriceSamples[i][j]*askSizeSamples[i][j] - bidPriceSamples[i][j]*bidSizeSamples[i][j])/denominator)
+            samples[i].append((askSizeSamples[i][j] - bidSizeSamples[i][j])/denominator)
    G = GramianAngularField(image_size=size,method='summation')
    S = np.transpose(np.array(samples))
    T = G.fit_transform(S)
