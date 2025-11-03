@@ -13,6 +13,87 @@ from concurrent.futures import ThreadPoolExecutor
 from pyts.image import GramianAngularField
 from pyts.image import MarkovTransitionField
 
+import math
+
+def _clamp01(x):
+   return 0.0 if x < 0.0 else 1.0 if x > 1.0 else x
+
+def _log_or_none(v):
+   return None if v is None or v <= 0 else math.log(v)
+
+def _fit_local_stats(samples):
+   vlogs = [_log_or_none(r[1]) for r in samples]
+   nlogs = [_log_or_none(r[2]) for r in samples]
+   vfinite = [x for x in vlogs if x is not None] or [0.0, 0.0]
+   nfinite = [x for x in nlogs if x is not None] or [0.0, 0.0]
+   vlo, vhi = min(vfinite), max(vfinite)
+   nlo, nhi = min(nfinite), max(nfinite)
+   if vhi == vlo: vhi = vlo + 1e-9
+   if nhi == nlo: nhi = nlo + 1e-9
+   return (vlo, vhi, nlo, nhi)
+
+def fit_shared_stats(buys, sells):
+   """
+   Build shared log-space min/max from BOTH sides.
+   Call once in the main thread; pass to worker threads.
+   """
+   both = buys + sells
+   return _fit_local_stats(both)
+
+def _norm_from_stats(val, lo, hi, fallback=0.5):
+   x = _log_or_none(val)
+   if x is None:
+      return fallback
+   return (x - lo) / (hi - lo)
+
+def _apply_contrast(x, n01, cmin, cmax):
+   c = cmin + (cmax - cmin) * n01
+   return _clamp01(0.5 + c * (x - 0.5))
+
+def samples_to_triplets(
+   samples,
+   stats=None,                 # optional: (vlo, vhi, nlo, nhi) for shared scaling
+   gamma=1.0,
+   contrast_range=(0.7, 1.7),
+   bg_mode="zero",             # "zero", "floor", "volume", "orders"
+   bg_floor=0.05,
+   bg_scale=0.2,
+):
+   """
+   One side at a time (buys OR sells).
+   Output rows: [primary, bg, bg] in [0,1].
+     - primary = volume brightness with orders-driven contrast
+     - bg duplicated to preserve pure hue after permutation
+   """
+   if stats is None:
+      stats = _fit_local_stats(samples)
+   vlo, vhi, nlo, nhi = stats
+
+   cmin, cmax = contrast_range
+   out = []
+
+   for price, vol, ords in samples:
+      v01 = _norm_from_stats(vol,  vlo, vhi)
+      n01 = _norm_from_stats(ords, nlo, nhi)
+      xg = _clamp01(v01) ** gamma
+      primary = _apply_contrast(xg, n01, cmin, cmax)
+
+      if bg_mode == "zero":
+         bg = 0.0
+      elif bg_mode == "floor":
+         bg = _clamp01(bg_floor)
+      elif bg_mode == "volume":
+         bg = _clamp01(v01 * bg_scale)
+      elif bg_mode == "orders":
+         bg = _clamp01(n01 * bg_scale)
+      else:
+         bg = 0.0
+
+      out.append([primary, bg, bg])
+
+   return out
+
+
 def getGafInfo(conn,cur):
    cur.execute( """
       SELECT product,max_size FROM crypto_gaf.gafs
@@ -119,7 +200,7 @@ def getOrderbookField(askPriceSamples,askSizeSamples,bidPriceSamples,bidSizeSamp
             samples[i].append(0)
          else:
 #            samples[i].append((askPriceSamples[i][j]*askSizeSamples[i][j] - bidPriceSamples[i][j]*bidSizeSamples[i][j])/denominator)
-            samples[i].append((askSizeSamples[i][j] - bidSizeSamples[i][j])/denominator)
+            samples[i].append((bidSizeSamples[i][j] - askSizeSamples[i][j])/denominator)
    G = GramianAngularField(image_size=size,method='summation')
    S = np.transpose(np.array(samples))
    T = G.fit_transform(S)
@@ -141,26 +222,28 @@ def fieldToRGB(field,permutation=None):
 def getBuyAndSellSamples(conn,cur,product,maxSize):
    cur.execute( """
       SELECT 
-         avg(buys[1]) over (order by sample_id desc rows between 5 preceding and 5 following),
-         avg(buys[2]) over (order by sample_id desc rows between 5 preceding and 5 following),
-         avg(buys[3]) over (order by sample_id desc rows between 5 preceding and 5 following),
-         avg(sells[1]) over (order by sample_id desc rows between 5 preceding and 5 following),
-         avg(sells[2]) over (order by sample_id desc rows between 5 preceding and 5 following),
-         avg(sells[3]) over (order by sample_id desc rows between 5 preceding and 5 following)
+         avg(buys[1]) over (order by sample_id desc rows between 2 preceding and 2 following),
+         avg(buys[2]) over (order by sample_id desc rows between 2 preceding and 2 following),
+         avg(buys[3]) over (order by sample_id desc rows between 2 preceding and 2 following),
+         avg(sells[1]) over (order by sample_id desc rows between 2 preceding and 2 following),
+         avg(sells[2]) over (order by sample_id desc rows between 2 preceding and 2 following),
+         avg(sells[3]) over (order by sample_id desc rows between 2 preceding and 2 following)
       FROM crypto_gaf.samples WHERE product = %s ORDER BY sample_id desc LIMIT %s
       """,(product,maxSize))
    rows = cur.fetchall()
    return [ [x[0],x[1],x[2]] for x in rows ],[ [x[3],x[4],x[5]] for x in rows ]
 
-def getBuyField(samples,size):
-   G = GramianAngularField(image_size=size,method='summation')
-   S = np.transpose(np.array(samples))
+def getBuyField(samples,size,stats):
+   buy_triplets = samples_to_triplets(samples, stats=stats, bg_mode="zero")
+   G = GramianAngularField(image_size=size,method='summation',sample_range=(0, 1))
+   S = np.transpose(np.array(buy_triplets))
    T = G.fit_transform(S)
    return T
 
-def getSellField(samples,size):
-   G = GramianAngularField(image_size=size,method='summation')
-   S = np.transpose(np.array(samples))
+def getSellField(samples,size,stats):
+   sell_triplets = samples_to_triplets(samples,stats=stats,  bg_mode="zero")
+   G = GramianAngularField(image_size=size,method='summation',sample_range=(0, 1))
+   S = np.transpose(np.array(sell_triplets))
    T = G.fit_transform(S)
    return T
 
@@ -206,13 +289,14 @@ def main(args):
             askPriceSamples,askSizeSamples = getAskSamples(conn,cur,product,maxSize)
             bidPriceSamples,bidSizeSamples = getBidSamples(conn,cur,product,maxSize)
             buySamples,sellSamples = getBuyAndSellSamples(conn,cur,product,maxSize)
+            shared_stats = fit_shared_stats(buySamples,sellSamples)
             size = len(midpointSamples)
             if size >= 21: 
                with ThreadPoolExecutor(max_workers=4) as executor:
                   future_midpoint = executor.submit(getMidpointFields, midpointSamples, size)
                   future_orderbook = executor.submit(getOrderbookField, askPriceSamples, askSizeSamples, bidPriceSamples, bidSizeSamples, size)
-                  future_buy = executor.submit(getBuyField, buySamples, size)
-                  future_sell = executor.submit(getSellField, sellSamples, size)
+                  future_buy = executor.submit(getBuyField, buySamples, size,shared_stats)
+                  future_sell = executor.submit(getSellField, sellSamples, size,shared_stats)
                   midpointFields = future_midpoint.result()
                   orderbookField = future_orderbook.result()
                   buyField = future_buy.result()
